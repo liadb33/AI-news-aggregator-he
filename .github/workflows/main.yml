@@ -2,8 +2,7 @@ name: AI News Aggregator Bot
 
 on:
   schedule:
-    - cron: '0 */5 * * *' # Runs every 5 hours (e.g., 00:00, 05:00, 10:00, 15:00, 20:00 UTC)
-    - cron: '0 0 * * *'    # Runs daily at midnight UTC, specifically for the long-term backup
+    - cron: '0 6 * * *' # Runs daily at 8:00 AM Israel time (6:00 AM UTC)
   workflow_dispatch: # Allows manual triggering from GitHub UI
 
 jobs:
