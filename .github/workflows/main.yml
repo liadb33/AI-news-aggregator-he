@@ -2,7 +2,7 @@ name: AI News Aggregator Bot
 
 on:
   schedule:
-    - cron: '0 6 * * *' # Runs daily at 8:00 AM Israel time (6:00 AM UTC)
+    - cron: '0 5 * * *' # Runs daily at 7:00 AM Israel time (5:00 AM UTC, winter UTC+2)
   workflow_dispatch: # Allows manual triggering from GitHub UI
 
 jobs:
@@ -47,9 +47,9 @@ jobs:
       uses: actions/cache/restore@v4 # Uses actions/cache/restore
       with:
         path: sent_links.db # Path to your database file in the repo root
-        key: ${{ runner.os }}-sent-links-db-v1 # Primary key for cache
-        restore-keys: | # Fallback keys if the exact key is not found
-          ${{ runner.os }}-sent-links-db-v1
+        key: ${{ runner.os }}-sent-links-db-${{ github.run_id }} # Unique key per run (will never match, forces restore from restore-keys)
+        restore-keys: | # Fallback: restores the most recent cache whose key starts with this prefix
+          ${{ runner.os }}-sent-links-db-
       continue-on-error: true # Allow workflow to proceed even if cache is not found (e.g., on first run)
         
     # --- Download sent_links.db long-term backup if cache was not hit ---
@@ -74,18 +74,18 @@ jobs:
         export PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH # Add src directory to Python path
         python src/main.py # Execute your main bot script
         
-    - name: Save sent_links.db to cache # <--- FIX: Corrected key logic here
+    - name: Save sent_links.db to cache
       uses: actions/cache/save@v4 # Uses actions/cache/save
       if: always() # Ensures this step runs even if previous steps failed
       with:
         path: sent_links.db # Path to the database file
-        # Use primary key from restore (if cache was hit) or fall back to a fixed key if no cache was hit initially.
-        key: ${{ steps.restore-cache-db.outputs.cache-primary-key || format('{0}-sent-links-db-v1', runner.os) }}
+        # Always use a unique key with run_id so the updated DB is saved as a NEW cache entry
+        key: ${{ runner.os }}-sent-links-db-${{ github.run_id }}
       continue-on-error: true # Allow workflow to proceed even if saving cache fails (less critical)
 
     - name: Upload sent_links.db as long-term backup # Uploads a backup artifact periodically
       uses: actions/upload-artifact@v4 # Uses actions/upload-artifact
-      if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' # Condition: only runs daily at midnight UTC
+      if: github.event_name == 'schedule' # Upload backup on every scheduled run
       with:
         name: sent_links.db-backup # A distinct name for the backup artifact
         path: sent_links.db # Path to the database file (relative to GITHUB_WORKSPACE root)
